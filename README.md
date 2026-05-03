@@ -1,73 +1,55 @@
-# React + TypeScript + Vite
-
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+OmiTrade — 企业级全品类数字资产聚合交易平台
+对标币安、OKX 的一站式中心化数字资产交易系统，集现货撮合交易、NFT 铸造 / 发行 / 交易、链上资产管理、多角色权限管控于一体，打造高性能、高安全、高可用的 Web3 金融交易生态。
+项目核心定位
+本项目为全功能头部交易所级数字资产交易平台，采用前后端分离架构，实现金融级高并发交易、毫秒级订单撮合、全流程资产风控，完美复刻头部交易所核心交易逻辑，覆盖普通用户、项目方、平台运营、超级管理员全角色操作场景，是完整的 Web3 金融交易解决方案。
+核心技术栈
+前端技术体系
+核心框架：React 18 + TypeScript ，全程类型约束，保障工程化开发质量
+UI 组件：Ant Design 企业级 UI 库，适配 PC 端沉浸式交易体验
+工程化：Vite 极速构建，支持热更新、代码分割、生产环境优化
+路由管理：React Router v6 ，实现嵌套路由、路由守卫、权限级路由拦截
+网络请求：Axios 自定义请求 / 响应拦截器，统一接口加密、错误处理、token 无感刷新
+状态管理：全局状态管控，支撑交易数据、用户资产、订单状态实时同步
+后端技术体系
+服务框架：Node.js + Express ，轻量级高效服务架构
+数据库：MongoDB ，灵活存储用户信息、订单数据、资产流水、NFT 元数据
+核心引擎：自研 BB 点对点订单撮合引擎，实现毫秒级挂单、吃单、撤单交易
+安全鉴权：JWT+RBAC 四级权限体系，精细化管控接口访问、操作权限、数据权限
+风控体系：资金流水校验、交易异常监控、资产提现审核、防恶意刷单机制
+硬核核心功能（全覆盖头部交易所能力）
+一、现货 BB 撮合交易系统
+订单撮合引擎：自研撮合算法，支持限价单、市价单双向撮合，实现买卖盘口实时匹配，交易延迟低至毫秒级，杜绝订单卡顿、漏单问题
+全流程订单操作：支持用户一键挂单、主动吃单、批量撤单，订单状态实时推送（待撮合、交易中、已完成、已撤销）
+盘口深度展示：实时渲染买卖五档 / 十档盘口数据，行情数据动态刷新，直观呈现市场交易深度
+交易流水溯源：每笔交易生成唯一流水，支持买卖双方资产明细、交易手续费、成交价格全程可查
+二、NFT 全生命周期管理模块
+NFT 铸造发行：支持自定义 NFT 元数据、发行量、权属信息，一键完成链上 NFT 铸造，适配主流 NFT 标准
+NFT 挂牌交易：NFT 持有者可自主定价、挂牌出售，支持一口价交易、竞价交易模式，打通 NFT 与数字资产交易通道
+NFT 资产管理：用户可查看 NFT 持仓、交易记录、权属证明，支持 NFT 转账、收藏、下架等全流程操作
+NFT 藏品展示：可视化展示 NFT 藏品信息，包含图片、属性、发行方、交易历史，打造沉浸式 NFT 交易展厅
+三、数字资产核心管理
+多币种资产账户：支持主流数字资产充值、提现、划转操作，账户资产余额实时更新
+资金风控审核：提现额度管控、异常交易拦截、实名 KYC 核验，保障用户资产安全
+手续费体系：自定义交易手续费、提现手续费，自动扣除、实时结算，手续费明细可查
+四、四级 RBAC 权限管控系统
+超级管理员：平台全局管控，权限配置、用户管理、交易监控、风控规则设置、系统参数调整
+运营管理员：用户审核、订单查询、资产流水核查、公告发布、异常交易处理
+商家 / 项目方：NFT 发行、资产上链、订单管理、自身项目数据统计
+普通用户：交易操作、资产管理、NFT 交易、个人信息维护，无后台操作权限
+五、用户体系与交易辅助
+注册登录：手机号 / 邮箱注册、JWT 登录鉴权、账号安全加密、密码找回
+个人中心：资产总览、订单管理、NFT 持仓、安全设置、实名认证
+行情数据：实时交易行情、K 线简易数据、涨跌幅度展示，辅助用户交易决策
+后台管理系统：可视化数据看板、用户统计、订单统计、资产统计、系统运维管控
+项目亮点与优势
+顶级交易所对标：核心交易逻辑、功能模块、用户体验完全对标币安、OKX 等头部平台，商业级项目标准
+自研撮合引擎：自主实现 BB 撮合交易逻辑，解决数字资产交易核心痛点，技术壁垒突出
+全场景业务覆盖：打通现货交易、NFT 生态、资产管理、权限管控，形成完整 Web3 交易闭环
+工程化规范开发：TypeScript 全栈类型约束、代码模块化拆分、接口统一规范，可直接落地商用、二次开发
+金融级安全保障：多层权限校验、数据加密、风控监控，杜绝交易漏洞、资产泄露风险
+项目适用场景
+商业级数字资产现货交易平台搭建
+Web3 NFT 发行与交易生态系统开发
+企业级金融交易后台管理系统
+头部交易所功能复刻与技术学习
+全栈 React+TypeScript+Node.js 工程化实战项目
