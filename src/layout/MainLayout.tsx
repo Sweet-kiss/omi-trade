@@ -1,88 +1,82 @@
-import React, { ReactNode } from 'react'
-import { Layout, Menu, Dropdown, Space, Avatar } from 'antd'
-import { Outlet } from 'react-router-dom' // 👈 加这个
+import React, { useEffect, useState } from 'react'
+import { Layout, Menu, Dropdown, Space, Avatar, message, Button } from 'antd'
+import { Outlet, useNavigate, useLocation } from 'react-router-dom'
+import { filterMenuItems, arrayToTree, mapToAntdMenu } from '../utils/menuUtils'
+import axios from 'axios'
+import { useUserStore } from '../store/useUserStore'
+
+// 🔥 加上 wagmi 钱包钩子
+import { useAccount, useConnect, useDisconnect } from 'wagmi'
+import { WalletOutlined } from '@ant-design/icons'
 
 const { Header, Sider, Content } = Layout
 
-interface MainLayoutProps {
-  children: ReactNode
-  collapsed: boolean
-  onToggle: () => void
-}
+export default function MainLayout({ collapsed, onToggle }) {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [menuList, setMenuList] = useState([])
 
-const MainLayout: React.FC<MainLayoutProps> = ({ collapsed, onToggle }) => {
-  const menuItems = [
-    {
-      label: '控制台',
-      key: 'dashboard',
-      path: '/dashboard',
-    },
-    {
-      label: '用户管理',
-      key: 'user',
-      children: [
-        { label: '用户列表', key: 'user-list', path: '/user/list' },
-        { label: 'KYC 认证', key: 'user-kyc', path: '/user/kyc' },
-      ],
-    },
-    {
-      label: '角色权限',
-      key: 'role-permission',
-      children: [
-        { label: '角色管理', key: 'role', path: '/role' },
-        { label: '权限管理', key: 'permission', path: '/permission' },
-      ],
-    },
-    {
-      label: '币币交易',
-      key: 'spot-trading',
-      children: [
-        { label: '交易对管理', key: 'trade-pair', path: '/trade-pair' },
-        { label: '全链路由聚合', key: 'swap-router', path: '/swap-router' },
-        { label: '止盈止损', key: 'stop-loss', path: '/stop-loss' },
-      ],
-    },
-    {
-      label: '订单管理',
-      key: 'order',
-      children: [
-        { label: '当前订单', key: 'order-pending', path: '/order/pending' },
-        { label: '历史订单', key: 'order-history', path: '/order/history' },
-      ],
-    },
-    {
-      label: '资产管理',
-      key: 'asset',
-      children: [
-        { label: '资产总览', key: 'asset-overview', path: '/asset/overview' },
-        { label: '充值管理', key: 'deposit', path: '/deposit' },
-        { label: '提现管理', key: 'withdraw', path: '/withdraw' },
-      ],
-    },
-    {
-      label: '代币钱包',
-      key: 'token-wallet',
-      children: [
-        { label: '代币管理', key: 'token', path: '/token' },
-        { label: '钱包管理', key: 'wallet', path: '/wallet' },
-      ],
-    },
-    {
-      label: '系统设置',
-      key: 'system',
-      children: [
-        { label: '基础配置', key: 'setting', path: '/setting' },
-        { label: '日志审计', key: 'log-audit', path: '/log-audit' },
-      ],
-    },
-  ]
-  const userMenuItems = [
-    { key: 'profile', label: '个人中心' },
-    { key: 'logout', label: '退出登录' },
-  ]
+  // 🔥 钱包相关状态
+  const { address, isConnected } = useAccount()
+  const { connect, connectors } = useConnect()
+  const { disconnect } = useDisconnect()
+  const metaMaskConnector = connectors[0]
+
+  // 格式化地址 0x123...5678
+  const formatAddress = (addr: string) => {
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`
+  }
+
+  function HeaderName() {
+    const user = useUserStore((state) => state.user)
+    if (!user) return <div>请登录</div>
+    return <div>{user.username}</div>
+  }
+
+  useEffect(() => {
+    const localMenus = localStorage.getItem('userMenus')
+    if (localMenus) {
+      try {
+        const raw = JSON.parse(localMenus)
+        const filtered = filterMenuItems(raw)
+        const treeData = arrayToTree(filtered)
+        const antdMenuData = mapToAntdMenu(treeData)
+        setMenuList(antdMenuData)
+      } catch (e) {
+        console.error('解析菜单数据失败', e)
+      }
+    }
+  }, [])
+
+  const handleMenuClick = ({ key }) => {
+    navigate(key)
+  }
+
+  const handleLogout = async () => {
+    try {
+      await axios.post('/api/user/logout')
+      message.success('退出成功')
+      localStorage.clear()
+      navigate('/login')
+    } catch (e) {
+      message.error('退出失败')
+    }
+  }
+
+  const currentPath =
+    location.pathname === '/' ? '/dashboard' : location.pathname
 
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout
+      style={{
+        height: '100vh',
+        overflow: 'hidden',
+        position: 'fixed',
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0,
+      }}>
       <Sider trigger={null} collapsible collapsed={collapsed} theme="dark">
         <div
           style={{
@@ -102,14 +96,16 @@ const MainLayout: React.FC<MainLayoutProps> = ({ collapsed, onToggle }) => {
         <Menu
           theme="dark"
           mode="inline"
-          defaultSelectedKeys={['dashboard']}
-          items={menuItems}
+          selectedKeys={[currentPath]}
+          onClick={handleMenuClick}
+          items={menuList}
         />
       </Sider>
 
-      <Layout>
+      <Layout style={{ height: '100vh', overflow: 'hidden' }}>
         <Header
           style={{
+            height: '8vh',
             padding: '0 24px',
             background: '#fff',
             display: 'flex',
@@ -117,25 +113,60 @@ const MainLayout: React.FC<MainLayoutProps> = ({ collapsed, onToggle }) => {
             justifyContent: 'space-between',
             boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
           }}>
-          <div onClick={onToggle} style={{ cursor: 'pointer', fontSize: 18 }}>
-            {collapsed ? '☰' : '☰'}
+          <div onClick={onToggle} style={{ fontSize: 18, cursor: 'pointer' }}>
+            ☰
           </div>
 
-          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-            <Space style={{ cursor: 'pointer' }}>
-              <Avatar size="small" />
-              <span>用户</span>
-            </Space>
-          </Dropdown>
+          {/* 🔥 右侧区域：钱包按钮 + 用户信息 */}
+          <Space size="large" align="center">
+            {/* 钱包连接区域 */}
+            {isConnected ? (
+              <Space>
+                <span
+                  style={{
+                    padding: '4px 10px',
+                    backgroundColor: '#f0f2f5',
+                    borderRadius: 6,
+                  }}>
+                  {formatAddress(address!)}
+                </span>
+                <Button size="small" onClick={() => disconnect()}>
+                  断开
+                </Button>
+              </Space>
+            ) : (
+              <Button
+                type="primary"
+                icon={<WalletOutlined />}
+                onClick={() => connect({ connector: metaMaskConnector })}>
+                连接钱包
+              </Button>
+            )}
+
+            {/* 用户信息 */}
+            <Dropdown
+              menu={{
+                items: [
+                  { key: 'profile', label: '个人中心' },
+                  { key: 'logout', label: '退出登录' },
+                ],
+                onClick: ({ key }) => key === 'logout' && handleLogout(),
+              }}>
+              <Space style={{ cursor: 'pointer' }}>
+                <Avatar src={'/default-avatar.png'} alt={'用户'} size={30} />
+                {HeaderName()}
+              </Space>
+            </Dropdown>
+          </Space>
         </Header>
 
         <Content
           style={{
-            margin: '24px 16px',
-            padding: 24,
-            minHeight: 280,
+            margin: '10px 10px',
+            padding: 5,
             background: '#fff',
             borderRadius: 8,
+            overflowY: 'auto',
           }}>
           <Outlet />
         </Content>
@@ -143,5 +174,3 @@ const MainLayout: React.FC<MainLayoutProps> = ({ collapsed, onToggle }) => {
     </Layout>
   )
 }
-
-export default MainLayout

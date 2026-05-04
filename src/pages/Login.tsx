@@ -1,19 +1,15 @@
-import { Form, Input, Select, Button, Card, Typography, message } from 'antd'
+import { Form, Input, Button, Card, Typography, message } from 'antd'
 import { UserOutlined, LockOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
+import { useUserStore } from '../store/useUserStore'
 // 👇 只新加这一行，引入登录接口
 import { login } from '../api/user'
 
 const { Title, Text } = Typography
 
 export default function Login() {
-  // 角色选项（解决 TS 报错）
-  const roleOptions = [
-    { value: 'super', label: '超级管理员' },
-    { value: 'admin', label: '管理员' },
-    { value: 'auditor', label: '审核员' },
-    { value: 'user', label: '普通用户' },
-  ]
+  // 从 store 里拿到 存用户 的方法
+  const setUser = useUserStore((state) => state.setUser)
 
   const navigate = useNavigate()
   const [form] = Form.useForm()
@@ -29,13 +25,23 @@ export default function Login() {
         role: values.role,
       })
 
-      const data = res.data
+      const data = res.data.data
 
-      if (data.code === 0) {
+      console.log('登录接口返回的数据：', data) // 这里能看到后端返回的 token 和菜单了
+
+      if (res.data.code === 0) {
         message.success('登录成功')
 
         // 👇 把 token 存起来
         localStorage.setItem('token', data.token)
+        localStorage.setItem('userMenus', JSON.stringify(data.menus)) // 👈 关键存菜单
+        // 把后端返回的 用户信息 存进去
+        setUser({
+          id: data.id,
+          username: data.username,
+          token: data.token,
+          role: data.role, // 角色，你后面权限要用
+        })
 
         navigate('/')
       } else {
@@ -89,10 +95,6 @@ export default function Login() {
               autoComplete="new-password"
               prefix={<LockOutlined />}
             />
-          </Form.Item>
-
-          <Form.Item label="注册角色" name="role" initialValue="user">
-            <Select options={roleOptions} placeholder="请选择角色" />
           </Form.Item>
 
           <Form.Item>
