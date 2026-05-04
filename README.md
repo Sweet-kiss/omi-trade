@@ -1,73 +1,82 @@
-# React + TypeScript + Vite
+# OmiTrade — 企业级全品类数字资产聚合交易平台
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+对标币安、OKX 级别的一站式数字资产交易系统，集 **现货 BB 撮合交易、NFT 铸造发行、挂单/吃单、链上资产管理、RBAC 四级权限** 于一体，实现高并发、低延迟、商业级可落地的 Web3 金融交易平台。
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 🔹 项目定位
 
-## React Compiler
+本项目是**完整自研的中心化数字资产交易所系统**，实现真实交易所核心业务逻辑：撮合引擎、订单系统、资产清算、NFT 全生命周期、多角色后台管理，可直接作为商业级交易平台底座使用。
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🔹 技术栈
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### 前端
+- React 18 + TypeScript
+- Ant Design 企业级 UI
+- Vite 构建
+- React Router v6（路由守卫 + 权限路由）
+- Axios 拦截器（统一请求、Token 刷新、加密）
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### 后端
+- Node.js + Express
+- MongoDB
+- JWT 鉴权
+- **自研 BB 订单撮合引擎**
+- RBAC 四级权限体系
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+---
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 🔹 核心功能（交易所全功能）
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 1. 现货 BB 撮合交易系统
+- 自研撮合引擎，支持**限价单 / 市价单**
+- 完整挂单、吃单、撤单、部分成交逻辑
+- 买卖盘口深度实时推送
+- 订单状态：待撮合 / 已成交 / 已撤销 / 异常处理
+- 交易历史、成交明细、手续费计算
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### 2. NFT 全生命周期模块
+- NFT 自定义铸造（发行量、属性、图片、描述）
+- NFT 挂牌、一口价出售、下架
+- NFT 持仓、转账、历史记录
+- 藏品展示页 + 链上信息关联
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+### 3. 数字资产账户体系
+- 多币种资产账户
+- 充值、提现、划转
+- 提现审核、资金风控、防刷机制
+- 资产流水日志全记录
+
+### 4. RBAC 四级权限系统
+- 超级管理员：全平台权限、风控、参数配置
+- 运营：用户审核、订单查询、公告管理
+- 项目方：发行代币、发行 NFT、查看自身数据
+- 普通用户：交易、持仓、个人中心
+
+### 5. 后台管理系统
+- 用户管理、KYC 审核
+- 订单管理、撮合日志
+- 资产监控、提现审核
+- 行情、统计大盘
+
+---
+
+## 🔹 项目亮点
+
+- 真正实现 **BB 撮合引擎**，不是简单 Demo
+- 完整复刻头部交易所**业务流程 + 数据结构**
+- TypeScript 全栈强类型，工程化规范
+- 高并发交易设计，可扩展分布式部署
+- 前后端完全分离，可独立部署、微服务改造
+
+---
+
+## 🔹 适用场景
+
+- 数字资产现货交易所
+- NFT 铸造与交易市场
+- 链上基金 & 资产管理平台
+- 金融风控 & 后台管理系统
+- 全栈 React + TypeScript 商业级实战项目
