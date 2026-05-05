@@ -30,7 +30,7 @@ function DashboardRedirect() {
   }
 
   // 管理员 → 渲染管理员首页
-  if (user.role === 'admin') {
+  if (user.role === 'super') {
     return <AdminHome />
   }
 
