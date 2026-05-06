@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import { createBrowserRouter, Outlet } from 'react-router-dom'
+import { createBrowserRouter, Outlet, Navigate } from 'react-router-dom'
+import { useUserStore } from '../store/useUserStore'
+import MainLayout from '../layout/MainLayout'
 import Login from '../pages/Login'
 import Register from '../pages/Register'
 import AdminHome from '../pages/AdminHome'
 import UserHome from '../pages/UserHome'
-import MainLayout from '../layout/MainLayout'
-import { Navigate } from 'react-router-dom'
-import { useUserStore } from '../store/useUserStore'
+import FundFlow from '../pages/FoundFlow'
 
 // 这就是你的“壳”
 function Layout() {
@@ -52,6 +52,10 @@ const router = createBrowserRouter([
     children: [
       // 只有这一个首页！
       { path: '/dashboard', element: <DashboardRedirect /> },
+      {
+        path: '/asset/record',
+        element: <FundFlow />,
+      },
 
       // 以后其他路由照常写
     ],

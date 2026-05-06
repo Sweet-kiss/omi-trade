@@ -111,7 +111,7 @@ const RechargeModal: React.FC<RechargeModalProps> = ({ visible, onClose }) => {
         onCancel={onClose}
         width={700}
         footer={null}
-        style={{ top: 20 }}
+        style={{ top: 10, height: '500px' }}
         styles={{
           body: {
             background: '#fff',

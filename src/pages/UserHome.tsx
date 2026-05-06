@@ -29,11 +29,13 @@ interface AssetData {
   coins: AssetCoin[]
 }
 
-// 引入你的充值弹窗组件
+// 引入充值弹窗组件
 import RechargeModal from './components/RechargeModal'
-
-import { getUserAssets } from '../api/walletApi'
+// 引入提现弹框组件
+import WithdrawModal from './components/WithdrawModel'
 import { insertCoin } from '../api/inserCoin'
+import { getUserAssets } from '../api/walletApi'
+import { getRecordLists } from '../api/allRecordListApi'
 
 const { Title, Text } = Typography
 
@@ -55,12 +57,21 @@ const UserHome = () => {
     toGetUserAssets()
   }, [])
 
-  // 插入充值记录
+  // 获取资产流水记录
   const getCoinLst = async () => {
     try {
+      const result = await getRecordLists()
+      console.log('接口返回：', result)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  // 获取插入充值记录
+  const toInsetCoin = async () => {
+    try {
       const result = await insertCoin({
-        txHash:
-          '0x4e2fac7de1d6027e5c0114ded80fb844801ab193e310c3d8f5153d2b36f4cceb',
+        txHash: '69869699',
         amount: '0.01',
       })
       console.log('接口返回：', result)
@@ -71,6 +82,9 @@ const UserHome = () => {
 
   // 控制充值弹窗显示隐藏
   const [rechargeVisible, setRechargeVisible] = useState(false)
+
+  // 控制提现弹框显示隐藏
+  const [withdrawVisible, setWithdrawVisible] = useState(false)
 
   // 以后这里换成接口取：用户资产
   const [assetData, setAssetData] = useState({
@@ -192,9 +206,7 @@ const UserHome = () => {
   return (
     <div style={{ minWidth: 1000, padding: '20px' }}>
       {/* 总资产卡片（四等分，真实版布局） */}
-      <Card
-        style={{ borderRadius: 12, marginBottom: 20 }}
-        bodyStyle={{ position: 'relative', padding: '20px' }}>
+      <Card style={{ borderRadius: 12, marginBottom: 20 }}>
         {/* 右上角：全部资产入口 */}
         <div
           style={{
@@ -281,10 +293,21 @@ const UserHome = () => {
             onClick={() => setRechargeVisible(true)}>
             充值
           </Button>
+
+          <Button
+            type="primary"
+            size="large"
+            icon={<MoneyCollectOutlined />}
+            style={{ flex: 1, height: 50 }}
+            onClick={() => toInsetCoin(true)}>
+            获取充值记录
+          </Button>
+
           <Button
             size="large"
             icon={<WalletOutlined />}
-            style={{ flex: 1, height: 50 }}>
+            style={{ flex: 1, height: 50 }}
+            onClick={() => setWithdrawVisible(true)}>
             提现
           </Button>
           <Button
@@ -298,7 +321,7 @@ const UserHome = () => {
             size="large"
             icon={<SwapOutlined />}
             style={{ flex: 1, height: 50 }}>
-            获取充值记录
+            获取资产流水
           </Button>
         </Space>
       </Card>
@@ -326,10 +349,16 @@ const UserHome = () => {
         />
       </Card>
 
-      {/* 充值弹窗 ↓ 只加了这一句 */}
+      {/* 充值弹窗 */}
       <RechargeModal
         visible={rechargeVisible}
         onClose={() => setRechargeVisible(false)}
+      />
+
+      {/* 提现弹窗 */}
+      <WithdrawModal
+        visible={withdrawVisible}
+        onClose={() => setWithdrawVisible(false)}
       />
     </div>
   )
