@@ -5,7 +5,7 @@ import { filterMenuItems, arrayToTree, mapToAntdMenu } from '../utils/menuUtils'
 import axios from 'axios'
 import { useUserStore } from '../store/useUserStore'
 
-// 🔥 加上 wagmi 钱包钩子
+// 🔥 wagmi 钱包钩子
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
 import { WalletOutlined } from '@ant-design/icons'
 
@@ -29,8 +29,8 @@ export default function MainLayout({ collapsed, onToggle }) {
 
   function HeaderName() {
     const user = useUserStore((state) => state.user)
-    if (!user) return <div>请登录</div>
-    return <div>{user.username}</div>
+    if (!user) return <div style={{ color: '#fff' }}>请登录</div>
+    return <div style={{ color: '#fff' }}>{user.username}</div>
   }
 
   useEffect(() => {
@@ -70,19 +70,32 @@ export default function MainLayout({ collapsed, onToggle }) {
     <Layout
       style={{
         height: '100vh',
+        width: '100vw',
         overflow: 'hidden',
         position: 'fixed',
         left: 0,
         top: 0,
         right: 0,
         bottom: 0,
+        margin: 0,
+        padding: 0,
+        background: '#0b1220',
       }}>
-      <Sider trigger={null} collapsible collapsed={collapsed} theme="dark">
+      {/* 侧边栏 强制暗黑 */}
+      <Sider
+        trigger={null}
+        collapsible
+        collapsed={collapsed}
+        theme="dark"
+        style={{
+          background: '#0f172a',
+          borderRight: '1px solid rgba(0,210,255,0.15)',
+        }}>
         <div
           style={{
             height: 32,
             margin: 16,
-            background: 'rgba(255,255,255,0.2)',
+            background: 'rgba(255,255,255,0.15)',
             borderRadius: 6,
             display: 'flex',
             alignItems: 'center',
@@ -99,38 +112,51 @@ export default function MainLayout({ collapsed, onToggle }) {
           selectedKeys={[currentPath]}
           onClick={handleMenuClick}
           items={menuList}
+          style={{ background: '#0f172a' }}
         />
       </Sider>
 
-      <Layout style={{ height: '100vh', overflow: 'hidden' }}>
+      <Layout
+        style={{
+          height: '100vh',
+          overflow: 'hidden',
+          background: '#0b1220',
+        }}>
+        {/* 🔥 重点：Header 彻底改成暗黑科技黑，去掉白色 */}
         <Header
           style={{
             height: '8vh',
             padding: '0 24px',
-            background: '#fff',
+            // 直接用深色 和整体统一
+            background: '#0f172a',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+            borderBottom: '1px solid rgba(0,210,255,0.15)',
+            // 强制文字白色
+            color: '#fff',
           }}>
-          <div onClick={onToggle} style={{ fontSize: 18, cursor: 'pointer' }}>
+          <div
+            onClick={onToggle}
+            style={{ fontSize: 18, cursor: 'pointer', color: '#fff' }}>
             ☰
           </div>
 
-          {/* 🔥 右侧区域：钱包按钮 + 用户信息 */}
+          {/* 右侧区域：钱包按钮 + 用户信息 */}
           <Space size="large" align="center">
-            {/* 钱包连接区域 */}
             {isConnected ? (
               <Space>
                 <span
                   style={{
                     padding: '4px 10px',
-                    backgroundColor: '#f0f2f5',
+                    backgroundColor: 'rgba(0,210,255,0.15)',
                     borderRadius: 6,
+                    color: '#00d2ff',
                   }}>
                   {formatAddress(address!)}
                 </span>
-                <Button size="small" onClick={() => disconnect()}>
+                <Button size="small" danger>
                   断开
                 </Button>
               </Space>
@@ -138,12 +164,14 @@ export default function MainLayout({ collapsed, onToggle }) {
               <Button
                 type="primary"
                 icon={<WalletOutlined />}
-                onClick={() => connect({ connector: metaMaskConnector })}>
+                style={{
+                  background: 'linear-gradient(90deg,#00b4ff,#007bff)',
+                  border: 'none',
+                }}>
                 连接钱包
               </Button>
             )}
 
-            {/* 用户信息 */}
             <Dropdown
               menu={{
                 items: [
@@ -160,13 +188,13 @@ export default function MainLayout({ collapsed, onToggle }) {
           </Space>
         </Header>
 
+        {/* 内容区域 深色底 顶格无留白 */}
         <Content
           style={{
-            margin: '10px 10px',
-            padding: 5,
-            background: '#fff',
-            borderRadius: 8,
+            background: '#0b1220',
             overflowY: 'auto',
+            margin: 0,
+            padding: 0,
           }}>
           <Outlet />
         </Content>

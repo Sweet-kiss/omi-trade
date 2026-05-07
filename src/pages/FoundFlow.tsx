@@ -9,9 +9,12 @@ import {
   message,
   Row,
   Col,
+  Form,
+  Button,
 } from 'antd'
-import { CopyOutlined } from 'antd/icons'
 import type { ColumnsType } from 'antd/es/table'
+import { getRecordLists } from '../api/allRecordListApi'
+import dayjs from 'dayjs'
 
 interface FundFlowItem {
   id: string
@@ -26,104 +29,8 @@ interface FundFlowItem {
   createTime: string
 }
 
-const fetchFundFlowApi = (params: any) => {
-  return new Promise<{ list: FundFlowItem[]; total: number }>((resolve) => {
-    setTimeout(() => {
-      const data = [
-        {
-          id: '1',
-          txHash: '0x1111117890abcdef1234567890abcdef12345678',
-          coin: 'ETH',
-          chain: 'Sepolia',
-          type: 'recharge',
-          amount: '+0.5',
-          fromAddress: '0xFromUser1111111111111',
-          toAddress: '0xPlatformAddr22222222222',
-          status: 'success',
-          createTime: '2026-05-06 15:30:22',
-        },
-        {
-          id: '2',
-          txHash: '0x2222223210fedcba09876543210fedcba0987654',
-          coin: 'USDT',
-          chain: 'BSC',
-          type: 'withdraw',
-          amount: '-200',
-          fromAddress: '0xPlatformAddr22222222222',
-          toAddress: '0xUserToAddr33333333333',
-          status: 'confirming',
-          createTime: '2026-05-06 14:20:11',
-        },
-        {
-          id: '3',
-          txHash: '0x3333331234567890abcdef1234567890abcdef12',
-          coin: 'ETH',
-          chain: 'Sepolia',
-          type: 'withdraw',
-          amount: '-0.2',
-          fromAddress: '0xPlatformAddr22222222222',
-          toAddress: '0xUserToAddr44444444444',
-          status: 'reject',
-          createTime: '2026-05-06 10:10:05',
-        },
-        {
-          id: '4',
-          txHash: '0x4444447890abcdef1234567890abcdef12345678',
-          coin: 'ETH',
-          chain: 'Sepolia',
-          type: 'recharge',
-          amount: '+1.2',
-          fromAddress: '0xFromUser5555555555555',
-          toAddress: '0xPlatformAddr22222222222',
-          status: 'success',
-          createTime: '2026-05-06 09:30:10',
-        },
-        {
-          id: '5',
-          txHash: '0x5555553210fedcba09876543210fedcba0987654',
-          coin: 'USDT',
-          chain: 'BSC',
-          type: 'recharge',
-          amount: '+500',
-          fromAddress: '0xFromUser6666666666666',
-          toAddress: '0xPlatformAddr22222222222',
-          status: 'success',
-          createTime: '2026-05-06 08:15:33',
-        },
-        {
-          id: '6',
-          txHash: '0x6666661234567890abcdef1234567890abcdef12',
-          coin: 'ETH',
-          chain: 'Sepolia',
-          type: 'withdraw',
-          amount: '-0.8',
-          fromAddress: '0xPlatformAddr22222222222',
-          toAddress: '0xUserToAddr77777777777',
-          status: 'confirming',
-          createTime: '2026-05-05 22:40:55',
-        },
-        {
-          id: '7',
-          txHash: '0x7777777890abcdef1234567890abcdef12345678',
-          coin: 'ETH',
-          chain: 'Sepolia',
-          type: 'recharge',
-          amount: '+0.3',
-          fromAddress: '0xFromUser8888888888888',
-          toAddress: '0xPlatformAddr22222222222',
-          status: 'success',
-          createTime: '2026-05-05 20:10:22',
-        },
-      ]
-      resolve({
-        list: data,
-        total: 90,
-      })
-    }, 300)
-  })
-}
-
 export default function FundFlow() {
+  const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<FundFlowItem[]>([])
   const [total, setTotal] = useState(0)
@@ -134,15 +41,17 @@ export default function FundFlow() {
     chain: '',
     type: '',
     pageNum: 1,
-    pageSize: 9, // 改成 9 条
+    pageSize: 7,
   })
 
+  // 加载列表
   const loadList = async () => {
     setLoading(true)
     try {
-      const res = await fetchFundFlowApi(params)
-      setData(res.list)
-      setTotal(res.total)
+      const res = await getRecordLists(params as any)
+      console.log(res, 'res======')
+      setData(res.data.data.list || [])
+      setTotal(res.data.data.total || 0)
     } catch (err) {
       message.error('加载流水失败')
     } finally {
@@ -150,13 +59,35 @@ export default function FundFlow() {
     }
   }
 
+  // 分页变化请求
   useEffect(() => {
     loadList()
-  }, [params.pageNum, params.pageSize])
+  }, [params.pageNum])
 
-  const handleSearch = () => {
-    setParams({ ...params, pageNum: 1 })
-    loadList()
+  // Form 搜索提交
+  const handleSearch = (values: any) => {
+    // 把表单所有值合并进params，跳第一页刷新
+    setParams((prev) => ({
+      ...prev,
+      ...values,
+      pageNum: 1,
+    }))
+    // 等state更新后再请求
+    setTimeout(loadList, 0)
+  }
+
+  // 重置
+  const handleReset = () => {
+    form.resetFields()
+    setParams({
+      txHash: '',
+      coin: '',
+      chain: '',
+      type: '',
+      pageNum: 1,
+      pageSize: 7,
+    })
+    setTimeout(loadList, 0)
   }
 
   const copyAddr = (addr?: string) => {
@@ -173,12 +104,14 @@ export default function FundFlow() {
       key: 'type',
       width: 90,
       fixed: 'left',
-      render: (t) =>
-        t === 'recharge' ? (
+      render: (_val, col) => {
+        const row = col as any
+        return row.type === 'deposit' ? (
           <Tag color="green">充值</Tag>
         ) : (
           <Tag color="orange">提现</Tag>
-        ),
+        )
+      },
     },
     {
       title: '哈希',
@@ -189,7 +122,7 @@ export default function FundFlow() {
       render: (hash) => (
         <Tooltip title={hash}>
           <span style={{ fontFamily: 'monospace' }}>
-            {hash.slice(0, 6)}...{hash.slice(-4)}
+            {hash ? `${hash.slice(0, 6)}...${hash.slice(-4)}` : '-'}
           </span>
         </Tooltip>
       ),
@@ -224,22 +157,31 @@ export default function FundFlow() {
           '-'
         ),
     },
-    { title: '时间', dataIndex: 'createTime', key: 'createTime', width: 170 },
+    {
+      title: '时间',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      width: 170,
+      // 只展示 年月日 去掉后面长串
+      render: (time) => (time ? dayjs(time).format('YYYY-MM-DD') : '-'),
+    },
     {
       title: '金额',
       dataIndex: 'amount',
       key: 'amount',
       width: 110,
       fixed: 'right',
-      render: (amt) => (
-        <span
-          style={{
-            color: amt.startsWith('+') ? '#3f8600' : '#cf1322',
-            fontWeight: 500,
-          }}>
-          {amt}
-        </span>
-      ),
+      render: (amt: number, col) => {
+        const row = col as any
+        const num = amt ?? 0
+        if (row.type === 'deposit') {
+          return <span style={{ color: 'green', fontWeight: 500 }}>+{num}</span>
+        }
+        if (row.type === 'withdraw') {
+          return <span style={{ color: 'red', fontWeight: 500 }}>-{num}</span>
+        }
+        return <span style={{ color: '#666' }}>{num}</span>
+      },
     },
     {
       title: '状态',
@@ -247,81 +189,77 @@ export default function FundFlow() {
       key: 'status',
       width: 100,
       fixed: 'right',
-      render: (s) => {
-        if (s === 'success') return <Tag color="success">已到账</Tag>
-        if (s === 'confirming') return <Tag color="processing">确认中</Tag>
-        if (s === 'reject') return <Tag color="error">驳回</Tag>
-        return '-'
+      render: (s, col) => {
+        const row = col as any
+        if (row.status === 'confirmed') return <Tag color="success">已到账</Tag>
+        if (row.status === 'pending')
+          return <Tag color="processing">确认中</Tag>
+        return <Tag>未知</Tag>
       },
     },
   ]
 
   return (
     <div style={{ padding: '16px' }}>
-      {/* 哈希搜索框 */}
-      <Input
-        placeholder="哈希搜索"
-        value={params.txHash}
-        onChange={(e) => setParams({ ...params, txHash: e.target.value })}
-        style={{ width: '100%', marginBottom: 12 }}
-        allowClear
-      />
+      {/* 全部改成一个Form表单 */}
+      <Form
+        form={form}
+        layout="inline"
+        onFinish={handleSearch}
+        style={{ marginBottom: 12 }}>
+        <Form.Item name="txHash" style={{ width: '100%', marginBottom: 12 }}>
+          <Input placeholder="请输入哈希搜索" allowClear />
+        </Form.Item>
 
-      {/* 三个等分 */}
-      <Row gutter={12} style={{ marginBottom: 12 }}>
-        <Col flex={1}>
-          <Select
-            placeholder="币种"
-            value={params.coin}
-            onChange={(v) => setParams({ ...params, coin: v })}
-            style={{ width: '100%' }}
-            allowClear>
-            <Select.Option value="ETH">ETH</Select.Option>
-            <Select.Option value="USDT">USDT</Select.Option>
-          </Select>
-        </Col>
-        <Col flex={1}>
-          <Select
-            placeholder="链"
-            value={params.chain}
-            onChange={(v) => setParams({ ...params, chain: v })}
-            style={{ width: '100%' }}
-            allowClear>
-            <Select.Option value="Sepolia">Sepolia</Select.Option>
-            <Select.Option value="BSC">BSC</Select.Option>
-          </Select>
-        </Col>
-        <Col flex={1}>
-          <Select
-            placeholder="类型"
-            value={params.type}
-            onChange={(v) => setParams({ ...params, type: v })}
-            style={{ width: '100%' }}
-            allowClear>
-            <Select.Option value="recharge">充值</Select.Option>
-            <Select.Option value="withdraw">提现</Select.Option>
-          </Select>
-        </Col>
-        <Col>
-          <button
-            onClick={handleSearch}
-            style={{
-              height: 32,
-              padding: '0 16px',
-              backgroundColor: '#165DFF',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 4,
-              cursor: 'pointer',
-            }}>
-            搜索
-          </button>
-        </Col>
-      </Row>
+        <Row gutter={12} style={{ width: '100%' }}>
+          <Col flex={1}>
+            <Form.Item name="coin" style={{ marginBottom: 0 }}>
+              <Select
+                placeholder="请选择币种"
+                style={{ width: '100%' }}
+                allowClear>
+                <Select.Option value="ETH">ETH</Select.Option>
+                <Select.Option value="USDT">USDT</Select.Option>
+              </Select>
+            </Form.Item>
+          </Col>
+          <Col flex={1}>
+            <Form.Item name="chain" style={{ marginBottom: 0 }}>
+              <Select
+                placeholder="请选择链"
+                style={{ width: '100%' }}
+                allowClear>
+                <Select.Option value="Sepolia">Sepolia</Select.Option>
+                <Select.Option value="BSC">BSC</Select.Option>
+              </Select>
+            </Form.Item>
+          </Col>
+          <Col flex={1}>
+            <Form.Item name="type" style={{ marginBottom: 0 }}>
+              <Select
+                placeholder="请选择类型"
+                style={{ width: '100%' }}
+                allowClear>
+                <Select.Option value="recharge">充值</Select.Option>
+                <Select.Option value="withdraw">提现</Select.Option>
+              </Select>
+            </Form.Item>
+          </Col>
+          <Col>
+            <Form.Item style={{ marginBottom: 0 }}>
+              <Button type="primary" htmlType="submit">
+                搜索
+              </Button>
+              <Button onClick={handleReset} style={{ marginLeft: 8 }}>
+                重置
+              </Button>
+            </Form.Item>
+          </Col>
+        </Row>
+      </Form>
 
-      {/* 表格：去掉多余高度，自然高度 */}
       <Table
-        rowKey="id"
+        rowKey="_id"
         loading={loading}
         columns={columns}
         dataSource={data}
@@ -330,7 +268,6 @@ export default function FundFlow() {
         size="middle"
       />
 
-      {/* 分页居中，紧贴表格 */}
       <div style={{ textAlign: 'center', marginTop: 16 }}>
         <Pagination
           current={params.pageNum}

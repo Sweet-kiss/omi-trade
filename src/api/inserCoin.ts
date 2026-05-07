@@ -15,6 +15,11 @@ api.interceptors.request.use((config) => {
 })
 
 // 插入充值记录
-export const insertCoin = (data: { txHash: string; amount: string }) => {
+export const insertCoin = (data: {
+  txHash: string
+  amount: string
+  chain: string
+  coin: string
+}) => {
   return api.post('/api/rechaege/manual', data)
 }

@@ -15,6 +15,11 @@ api.interceptors.request.use((config) => {
 })
 
 // 获取资产流水列表
-export const getRecordLists = () => {
-  return api.get('/api/record/list')
+export const getRecordLists = (data: {
+  hash: string
+  type: string
+  chain: string
+  coin: string
+}) => {
+  return api.post('/api/record/list', data)
 }
