@@ -1,28 +1,49 @@
 import React, { useEffect, useState } from 'react'
-import { Layout, Menu, Dropdown, Space, Avatar, message, Button } from 'antd'
+import {
+  Layout,
+  Menu,
+  Dropdown,
+  Space,
+  Avatar,
+  message,
+  Button,
+  Tabs,
+} from 'antd'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { filterMenuItems, arrayToTree, mapToAntdMenu } from '../utils/menuUtils'
 import axios from 'axios'
 import { useUserStore } from '../store/useUserStore'
-
-// 🔥 wagmi 钱包钩子
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
 import { WalletOutlined } from '@ant-design/icons'
 
 const { Header, Sider, Content } = Layout
 
+interface TabItem {
+  key: string
+  label: string
+  closable: boolean
+}
+
+// 🔥 直接写死你所有路由和中文名称，永久匹配，不依赖菜单
+const routeNameMap: Record<string, string> = {
+  '/dashboard': '控制台',
+  '/asset/record': '资金流水',
+  '/wallet/addressPoll': '地址池管理',
+  '/wallet/addressManagement': '地址绑定管理',
+}
+
 export default function MainLayout({ collapsed, onToggle }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const [menuList, setMenuList] = useState([])
+  const [menuList, setMenuList] = useState<any[]>([])
+  const [tabs, setTabs] = useState<TabItem[]>([])
+  const [activeTabKey, setActiveTabKey] = useState('')
 
-  // 🔥 钱包相关状态
   const { address, isConnected } = useAccount()
   const { connect, connectors } = useConnect()
   const { disconnect } = useDisconnect()
   const metaMaskConnector = connectors[0]
 
-  // 格式化地址 0x123...5678
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`
   }
@@ -31,6 +52,11 @@ export default function MainLayout({ collapsed, onToggle }) {
     const user = useUserStore((state) => state.user)
     if (!user) return <div style={{ color: '#fff' }}>请登录</div>
     return <div style={{ color: '#fff' }}>{user.username}</div>
+  }
+
+  // 优先从固定映射拿名字，再也不显示功能页面
+  const getMenuLabel = (path: string) => {
+    return routeNameMap[path] || '未知页面'
   }
 
   useEffect(() => {
@@ -47,6 +73,39 @@ export default function MainLayout({ collapsed, onToggle }) {
       }
     }
   }, [])
+
+  useEffect(() => {
+    const currentPath =
+      location.pathname === '/' ? '/dashboard' : location.pathname
+    setActiveTabKey(currentPath)
+
+    const exist = tabs.some((tab) => tab.key === currentPath)
+    if (!exist) {
+      const label = getMenuLabel(currentPath)
+      setTabs((prev) => [
+        ...prev,
+        {
+          key: currentPath,
+          label,
+          closable: true,
+        },
+      ])
+    }
+  }, [location.pathname])
+
+  const handleTabChange = (key: string) => {
+    navigate(key)
+  }
+
+  const handleTabEdit = (targetKey: string, action: 'add' | 'remove') => {
+    if (action === 'remove') {
+      let newTabs = tabs.filter((tab) => tab.key !== targetKey)
+      setTabs(newTabs)
+      if (targetKey === activeTabKey && newTabs.length) {
+        navigate(newTabs[newTabs.length - 1].key)
+      }
+    }
+  }
 
   const handleMenuClick = ({ key }) => {
     navigate(key)
@@ -81,7 +140,6 @@ export default function MainLayout({ collapsed, onToggle }) {
         padding: 0,
         background: '#0b1220',
       }}>
-      {/* 侧边栏 强制暗黑 */}
       <Sider
         trigger={null}
         collapsible
@@ -122,19 +180,16 @@ export default function MainLayout({ collapsed, onToggle }) {
           overflow: 'hidden',
           background: '#0b1220',
         }}>
-        {/* 🔥 重点：Header 彻底改成暗黑科技黑，去掉白色 */}
         <Header
           style={{
             height: '8vh',
             padding: '0 24px',
-            // 直接用深色 和整体统一
             background: '#0f172a',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
             borderBottom: '1px solid rgba(0,210,255,0.15)',
-            // 强制文字白色
             color: '#fff',
           }}>
           <div
@@ -143,7 +198,6 @@ export default function MainLayout({ collapsed, onToggle }) {
             ☰
           </div>
 
-          {/* 右侧区域：钱包按钮 + 用户信息 */}
           <Space size="large" align="center">
             {isConnected ? (
               <Space>
@@ -156,7 +210,7 @@ export default function MainLayout({ collapsed, onToggle }) {
                   }}>
                   {formatAddress(address!)}
                 </span>
-                <Button size="small" danger>
+                <Button size="small" danger onClick={() => disconnect()}>
                   断开
                 </Button>
               </Space>
@@ -164,6 +218,7 @@ export default function MainLayout({ collapsed, onToggle }) {
               <Button
                 type="primary"
                 icon={<WalletOutlined />}
+                onClick={() => connect({ connector: metaMaskConnector })}
                 style={{
                   background: 'linear-gradient(90deg,#00b4ff,#007bff)',
                   border: 'none',
@@ -188,7 +243,29 @@ export default function MainLayout({ collapsed, onToggle }) {
           </Space>
         </Header>
 
-        {/* 内容区域 深色底 顶格无留白 */}
+        <div
+          style={{
+            padding: '0 8px',
+            background: '#e1eaedf4',
+            borderBottom: '1px solid rgba(19, 15, 85, 0.15)',
+          }}>
+          <Tabs
+            hideAdd
+            type="editable-card"
+            size="small"
+            activeKey={activeTabKey}
+            items={tabs}
+            onChange={handleTabChange}
+            onEdit={handleTabEdit}
+            tabBarStyle={{
+              margin: 0,
+              padding: '2px 0',
+            }}
+            // 只加类名，不写styles，绝不报错
+            className="dark-fixed-tabs"
+          />
+        </div>
+
         <Content
           style={{
             background: '#0b1220',

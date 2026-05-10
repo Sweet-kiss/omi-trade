@@ -127,3 +127,13 @@ body,
   padding: 0;
   box-sizing: border-box;
 }
+
+.ant-tabs-tab {
+  color: #94a3b8 !important;
+}
+.ant-tabs-tab-active {
+  color: #00d2ff !important;
+}
+.ant-tabs-ink-bar {
+  background: #00d2ff !important;
+}

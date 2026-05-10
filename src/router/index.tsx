@@ -7,6 +7,8 @@ import Register from '../pages/Register'
 import AdminHome from '../pages/AdminHome'
 import UserHome from '../pages/UserHome'
 import FundFlow from '../pages/FoundFlow'
+import AddressPool from '../pages/AddressPool'
+import AddressManagement from '../pages/AddressManagement'
 
 // 这就是你的“壳”
 function Layout() {
@@ -55,6 +57,14 @@ const router = createBrowserRouter([
       {
         path: '/asset/record',
         element: <FundFlow />,
+      },
+      {
+        path: '/wallet/addressPoll',
+        element: <AddressPool />,
+      },
+      {
+        path: '/wallet/addressManagement',
+        element: <AddressManagement />,
       },
 
       // 以后其他路由照常写

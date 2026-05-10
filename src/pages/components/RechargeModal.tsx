@@ -6,7 +6,6 @@ import {
   Space,
   Tag,
   Typography,
-  Timeline,
   Row,
   Col,
   message,
@@ -14,8 +13,8 @@ import {
 import { QrcodeOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { QRCodeSVG } from 'qrcode.react'
 
-// 你真实接口
-import { getDepositAddress } from '../../api/walletApi'
+// 👉 1. 我帮你新增导入 归集地址接口，原有不动
+import { getCollectAddress } from '../../api/getCollectAddressApi.ts'
 
 const { Text, Paragraph } = Typography
 
@@ -77,12 +76,18 @@ const RechargeModal: React.FC<RechargeModalProps> = ({ visible, onClose }) => {
 
     setLoading(true)
     try {
-      const result = await getDepositAddress({
-        coin: currentCoin,
-        chain: selected.chain,
+      console.log(currentCoin, 'currentCoin------')
+      console.log(selected.chain, 'selected.chain------')
+
+      // 👉 2. 新增：调用捞归集地址接口，参数直接复用当前选中的币种和链
+      const collectRes = await getCollectAddress({
+        coin: currentCoin, // 当前选中币种
+        chain: selected.chain, // 当前选中链名称
       })
-      console.log('接口返回地址：', result.data)
-      setAddress(result.data.address || '')
+
+      // 打印拿到的归集地址，后续你做归集逻辑直接用 collectRes.data.collectAddress
+      console.log('✅ 后端返回归集地址：', collectRes.data.data.collectAddress)
+      setAddress(collectRes.data.data.collectAddress)
     } catch (err) {
       console.error(err)
       message.error('获取地址失败')
@@ -211,13 +216,13 @@ const RechargeModal: React.FC<RechargeModalProps> = ({ visible, onClose }) => {
           <Row gutter={16}>
             <Col span={12}>
               <Card title="到账进度" size="small">
-                <Timeline
+                {/* <Timeline
                   items={[
                     { color: 'green', children: '等待转账' },
                     { color: 'gray', children: '网络确认中' },
                     { color: 'gray', children: '到账成功' },
                   ]}
-                />
+                /> */}
               </Card>
             </Col>
             <Col span={12}>
