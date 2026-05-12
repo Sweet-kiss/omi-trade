@@ -14,11 +14,7 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// 获取资产流水列表
-export const getCollectAddress = (data: {
-  chain: string
-  coin: string
-  userWalletAddr: string
-}) => {
-  return api.get('/api/collectAddress/getCollectAddr', { params: data })
+// 获取分链分币统计列表
+export const toUnBindAddress = (data: { address: string }) => {
+  return api.post('/api/address/unbind', data)
 }

@@ -1,4 +1,3 @@
-// walletApi.ts
 import axios from 'axios'
 
 const api = axios.create({
@@ -14,11 +13,7 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// 获取资产流水列表
-export const getCollectAddress = (data: {
-  chain: string
-  coin: string
-  userWalletAddr: string
-}) => {
-  return api.get('/api/collectAddress/getCollectAddr', { params: data })
+// 获取地地址余额
+export const getChainBlance = (data: { chain: string; address: string }) => {
+  return api.get('/api/address/chainBalance', { params: data })
 }

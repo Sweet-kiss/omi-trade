@@ -416,38 +416,6 @@ const UserHome = () => {
               立即交易
             </Button>
           </Col>
-          <Col flex={1}>
-            <Button
-              size="large"
-              icon={<MoneyCollectOutlined />}
-              style={{
-                width: '100%',
-                height: 50,
-                background: 'rgba(255,255,255,0.08)',
-                color: '#fff',
-                border: '1px solid rgba(0,210,255,0.2)',
-                borderRadius: 6,
-              }}
-              onClick={toInsetCoin}>
-              充值记录
-            </Button>
-          </Col>
-          <Col flex={1}>
-            <Button
-              size="large"
-              icon={<SwapOutlined />}
-              style={{
-                width: '100%',
-                height: 50,
-                background: 'rgba(255,255,255,0.08)',
-                color: '#fff',
-                border: '1px solid rgba(0,210,255,0.2)',
-                borderRadius: 6,
-              }}
-              onClick={getCoinLst}>
-              资产流水
-            </Button>
-          </Col>
         </Row>
       </div>
 

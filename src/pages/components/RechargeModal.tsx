@@ -9,11 +9,11 @@ import {
   Row,
   Col,
   message,
+  Input,
 } from 'antd'
 import { QrcodeOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import { QRCodeSVG } from 'qrcode.react'
 
-// 👉 1. 我帮你新增导入 归集地址接口，原有不动
 import { getCollectAddress } from '../../api/getCollectAddressApi.ts'
 
 const { Text, Paragraph } = Typography
@@ -62,32 +62,39 @@ const RechargeModal: React.FC<RechargeModalProps> = ({ visible, onClose }) => {
   const [selected, setSelected] = useState(coinChains.USDT[0])
   const [qrVisible, setQrVisible] = useState(false)
 
-  // 充值地址
   const [address, setAddress] = useState('')
   const [loading, setLoading] = useState(false)
 
-  // ========== 真实调用后端接口 ==========
+  // 👉 新增：用户钱包地址
+  const [userWalletAddr, setUserWalletAddr] = useState('')
+
+  // 👉 去掉自动调用，只保留手动触发
   const loadAddress = async () => {
-    // 只有 ETH Sepolia 才调用真实接口做演示
+    // 必须是ETH Sepolia
     if (!(currentCoin === 'ETH' && selected.chain === 'Sepolia')) {
-      setAddress('演示地址：暂未开通')
+      message.info('当前仅支持 ETH Sepolia 分配地址')
+      return
+    }
+
+    // 校验用户必须输入钱包地址
+    if (!userWalletAddr.trim()) {
+      message.warning('请输入你的钱包地址')
       return
     }
 
     setLoading(true)
     try {
-      console.log(currentCoin, 'currentCoin------')
-      console.log(selected.chain, 'selected.chain------')
-
-      // 👉 2. 新增：调用捞归集地址接口，参数直接复用当前选中的币种和链
       const collectRes = await getCollectAddress({
-        coin: currentCoin, // 当前选中币种
-        chain: selected.chain, // 当前选中链名称
+        coin: currentCoin,
+        chain: selected.chain,
+        userWalletAddr: userWalletAddr, // 👉 传给后端
       })
 
-      // 打印拿到的归集地址，后续你做归集逻辑直接用 collectRes.data.collectAddress
-      console.log('✅ 后端返回归集地址：', collectRes.data.data.collectAddress)
-      setAddress(collectRes.data.data.collectAddress)
+      const resData = collectRes.data.data
+      console.log(resData, 'resData----------')
+
+      setAddress(resData.collectAddress)
+      message.success('地址分配成功')
     } catch (err) {
       console.error(err)
       message.error('获取地址失败')
@@ -96,16 +103,11 @@ const RechargeModal: React.FC<RechargeModalProps> = ({ visible, onClose }) => {
     }
   }
 
-  // 打开弹窗 / 切 ETH Sepolia 时重新加载
-  useEffect(() => {
-    if (visible) {
-      loadAddress()
-    }
-  }, [visible, currentCoin, selected])
-
   const switchCoin = (coin: string) => {
     setCurrentCoin(coin)
     setSelected(coinChains[coin][0])
+    setAddress('') // 切换清空地址
+    setUserWalletAddr('')
   }
 
   return (
@@ -116,7 +118,7 @@ const RechargeModal: React.FC<RechargeModalProps> = ({ visible, onClose }) => {
         onCancel={onClose}
         width={700}
         footer={null}
-        style={{ top: 10, height: '500px' }}
+        style={{ top: 10 }}
         styles={{
           body: {
             background: '#fff',
@@ -124,7 +126,6 @@ const RechargeModal: React.FC<RechargeModalProps> = ({ visible, onClose }) => {
           },
         }}>
         <Space direction="vertical" size="small" style={{ width: '100%' }}>
-          {/* 币种 */}
           <Card title="选择币种" size="small">
             <Space wrap>
               {['USDT', 'BTC', 'ETH', 'BNB'].map((coin) => (
@@ -138,7 +139,6 @@ const RechargeModal: React.FC<RechargeModalProps> = ({ visible, onClose }) => {
             </Space>
           </Card>
 
-          {/* 链 */}
           <Card title="选择链类型" size="small">
             <Space direction="vertical" style={{ width: '100%' }}>
               {coinChains[currentCoin].map((item) => (
@@ -186,7 +186,25 @@ const RechargeModal: React.FC<RechargeModalProps> = ({ visible, onClose }) => {
             </Space>
           </Card>
 
-          {/* 充值地址 —— 真实显示后端返回的地址 */}
+          {/* 👉 新增：用户钱包地址输入框 */}
+          {currentCoin === 'ETH' && selected.chain === 'Sepolia' && (
+            <Card title="你的钱包地址" size="small">
+              <Input
+                placeholder="请输入你的钱包地址"
+                value={userWalletAddr}
+                onChange={(e) => setUserWalletAddr(e.target.value)}
+                style={{ marginBottom: 10 }}
+              />
+              <Button
+                type="primary"
+                block
+                loading={loading}
+                onClick={loadAddress}>
+                申请分配地址
+              </Button>
+            </Card>
+          )}
+
           <Card title="充值地址" size="small">
             <Row gutter={16} align="middle">
               <Col span={17}>
@@ -198,32 +216,24 @@ const RechargeModal: React.FC<RechargeModalProps> = ({ visible, onClose }) => {
                     borderRadius: 6,
                     wordBreak: 'break-all',
                   }}>
-                  {loading ? '加载中...' : address}
+                  {loading ? '加载中...' : address || '未分配'}
                 </Paragraph>
               </Col>
               <Col span={7} style={{ textAlign: 'right' }}>
                 <Button
                   icon={<QrcodeOutlined />}
                   onClick={() => setQrVisible(true)}
-                  size="small">
+                  size="small"
+                  disabled={!address}>
                   二维码
                 </Button>
               </Col>
             </Row>
           </Card>
 
-          {/* 进度 + 提示 */}
           <Row gutter={16}>
             <Col span={12}>
-              <Card title="到账进度" size="small">
-                {/* <Timeline
-                  items={[
-                    { color: 'green', children: '等待转账' },
-                    { color: 'gray', children: '网络确认中' },
-                    { color: 'gray', children: '到账成功' },
-                  ]}
-                /> */}
-              </Card>
+              <Card title="到账进度" size="small"></Card>
             </Col>
             <Col span={12}>
               <Card title="温馨提示" size="small">
@@ -239,7 +249,6 @@ const RechargeModal: React.FC<RechargeModalProps> = ({ visible, onClose }) => {
         </Space>
       </Modal>
 
-      {/* 二维码弹窗 */}
       <Modal
         open={qrVisible}
         onCancel={() => setQrVisible(false)}

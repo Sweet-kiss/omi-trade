@@ -17,16 +17,15 @@ import {
 } from 'antd'
 import { CopyOutlined } from '@ant-design/icons'
 import type { TableColumnsType } from 'antd'
-// 引入你二次封装的请求
 import { getAddressManageLists } from '../api/addressManageApi.ts'
-// 引入分配绑定接口
 import { toBindAddress } from '../api/bindAddressApi.ts'
+import { toUnBindAddress } from '../api/unBindAddress.ts'
+import { getChainBlance } from '../api/chainBlance.ts'
 
 const { Option } = Select
 const { Search } = Input
 const { Item } = Form
 
-// 表格条目类型 和后端返回字段对齐
 interface BindAddressItem {
   _id: string
   userName: string
@@ -34,7 +33,7 @@ interface BindAddressItem {
   coinName: string
   address: string
   balance: string
-  userStatus: string
+  userStatus: string | number
   bindTime: string
   status: 0 | 1
   createTime: string
@@ -43,7 +42,6 @@ interface BindAddressItem {
   coin: string
 }
 
-// 详情弹窗默认数据
 const defaultDetail = {
   _id: '',
   userName: '',
@@ -60,48 +58,59 @@ const defaultDetail = {
   coin: '',
 }
 
-// 链编码 -> 中文显示名
 const chainMap: Record<string, string> = {
   Sepolia: 'Sepolia 测试网',
   Polygon: 'Polygon 测试网',
   BitcoinTestnet: 'BTC 测试网',
 }
 
-// 币种编码 -> 中文显示名
 const coinMap: Record<string, string> = {
   ETH: 'ETH 以太币',
   BTC: 'BTC 比特币',
 }
 
+const getUserStatusTag = (val: string | number) => {
+  switch (Number(val)) {
+    case 1:
+      return <Tag color="green">正常</Tag>
+    case 2:
+      return <Tag color="red">冻结</Tag>
+    case 3:
+      return <Tag color="default">作废</Tag>
+    default:
+      return <Tag>未知</Tag>
+  }
+}
+
 const AddressManagement: React.FC = () => {
-  // 筛选条件
   const [chainId, setChainId] = useState<string>()
   const [coinId, setCoinId] = useState<string>()
   const [address, setAddress] = useState('')
-
-  // 默认初始选中已绑定地址
   const [activeTab, setActiveTab] = useState('bound')
-
-  // 分页
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [total, setTotal] = useState(0)
-
-  // 表格数据
   const [tableData, setTableData] = useState<BindAddressItem[]>([])
-
-  // 详情弹窗
   const [detailVisible, setDetailVisible] = useState(false)
   const [detailInfo, setDetailInfo] = useState<BindAddressItem>(defaultDetail)
-
-  // ========== 新增：分配弹窗相关 ==========
   const [assignVisible, setAssignVisible] = useState(false)
   const [currentRow, setCurrentRow] = useState<BindAddressItem | null>(null)
-  // 分配弹窗加载状态
   const [assignLoading, setAssignLoading] = useState(false)
   const [form] = Form.useForm()
+  const [unBindModalVisible, setUnBindModalVisible] = useState(false)
+  const [unBindRow, setUnBindRow] = useState<BindAddressItem | null>(null)
+  const [realChainBalance, setRealChainBalance] = useState('')
+  const [checkBalanceLoading, setCheckBalanceLoading] = useState(false)
+  const [unBindLoading, setUnBindLoading] = useState(false)
+  const [balanceModalVisible, setBalanceModalVisible] = useState(false)
+  const [balanceInfo, setBalanceInfo] = useState<{
+    chainName: string
+    coin: string
+    address: string
+    balance: string
+  } | null>(null)
+  const [balanceModalLoading, setBalanceModalLoading] = useState(false)
 
-  // 打开分配弹窗
   const handleOpenAssignModal = (record: BindAddressItem) => {
     setAssignVisible(true)
     setCurrentRow(record)
@@ -114,59 +123,41 @@ const AddressManagement: React.FC = () => {
     })
   }
 
-  // 分配确定提交
   const handleAssignOk = async () => {
     try {
       const values = await form.validateFields()
       if (!currentRow?._id) return
-
       setAssignLoading(true)
-      // 调用绑定接口：传 poolId 和 用户输入的钱包地址
       const res = await toBindAddress({
         poolId: currentRow._id,
         userWalletAddr: values.userWalletAddr,
       })
-
-      console.log(res, 'res--------')
-
       const resultData = res.data as any
-
       if (resultData.code === 200) {
         message.success('地址分配绑定成功')
-        // 关闭弹窗
         setAssignVisible(false)
-        // 重置表单
         form.resetFields()
-        // 刷新列表
         fetchAddressList()
       } else if (resultData.code === 400) {
-        console.log('nnnnn--')
         message.error(resultData.msg)
-        // 关闭弹窗
         setAssignVisible(false)
-        // 重置表单
         form.resetFields()
       }
     } catch (err) {
-      console.log('校验或接口请求失败', err)
       message.error('操作失败，请稍后重试')
     } finally {
       setAssignLoading(false)
     }
   }
-  // ======================================
 
-  // Tab 转后端status：bound=1 已绑定，unbound=0 未绑定
   const getStatusValue = () => {
     if (activeTab === 'bound') return 1
     if (activeTab === 'unbound') return 0
     return 1
   }
 
-  // 请求列表接口 -- 手动收集所有筛选框参数组装params
   const fetchAddressList = async () => {
     const statusVal = getStatusValue()
-    // 把页面所有筛选框参数 全部手动装进去
     const params = {
       page,
       pageSize,
@@ -175,12 +166,8 @@ const AddressManagement: React.FC = () => {
       address: address.trim(),
       status: statusVal,
     }
-
-    console.log('查询参数全部带出 ==>', params)
-
     try {
       const res = await getAddressManageLists(params as any)
-      console.log(res, 'res--4444-------')
       if (res.data.code === 200) {
         setTableData(res.data.data.list)
         setTotal(res.data.data.total)
@@ -190,30 +177,102 @@ const AddressManagement: React.FC = () => {
     }
   }
 
-  // 切换Tab 重置到第一页
+  const handleViewRealBalance = async (record: BindAddressItem) => {
+    setBalanceModalVisible(true)
+    setBalanceModalLoading(true)
+    setBalanceInfo(null)
+    try {
+      const res = await getChainBlance({
+        chain: record.chain.toLowerCase(),
+        address: record.address,
+      })
+      if (res.data.code === 200) {
+        let bal = res.data.data.balance || '0'
+        bal = bal.replace(/^0+(?=\d)/, '')
+        if (bal === '') bal = '0'
+        setBalanceInfo({
+          chainName: chainMap[record.chain] || record.chain,
+          coin: record.coin,
+          address: record.address,
+          balance: bal,
+        })
+      } else {
+        message.error(res.data.msg || '查询余额失败')
+      }
+    } catch (error) {
+      message.error('调用接口查询链上余额异常')
+    } finally {
+      setBalanceModalLoading(false)
+    }
+  }
+
+  const handleOpenUnBindModal = async (record: BindAddressItem) => {
+    setUnBindRow(record)
+    setUnBindModalVisible(true)
+    setRealChainBalance('')
+    setCheckBalanceLoading(true)
+    try {
+      const res = await getChainBlance({
+        chain: record.chain.toLowerCase(),
+        address: record.address,
+      })
+      if (res.data.code === 200) {
+        let bal = res.data.data.balance || '0'
+        bal = bal.replace(/^0+(?=\d)/, '')
+        setRealChainBalance(bal || '0')
+      } else {
+        message.error(res.data.msg || '查询余额失败')
+      }
+    } catch (err) {
+      message.error('余额校验失败，请重试')
+    } finally {
+      setCheckBalanceLoading(false)
+    }
+  }
+
+  const handleUnBindOk = async () => {
+    if (!unBindRow?._id) return
+    if (Number(realChainBalance) > 0) {
+      message.error('地址存在链上余额，请先归集后再解绑！')
+      return
+    }
+    setUnBindLoading(true)
+    try {
+      const res = await toUnBindAddress({
+        address: unBindRow.address,
+      })
+      if (res.data.code === 200) {
+        message.success('解绑成功，地址已回收至地址池')
+        setUnBindModalVisible(false)
+        fetchAddressList()
+      } else {
+        message.error(res.data.msg || '解绑失败')
+      }
+    } catch (err) {
+      message.error('网络异常，解绑失败')
+    } finally {
+      setUnBindLoading(false)
+    }
+  }
+
   useEffect(() => {
     setPage(1)
   }, [activeTab])
 
-  // 页码、每页条数、Tab切换 自动请求
   useEffect(() => {
     fetchAddressList()
   }, [page, pageSize, activeTab])
 
-  // 查询按钮：重置页码 + 主动调接口带所有参数
   const handleSearch = () => {
     setPage(1)
-    // 关键：执行查询，把上面所有筛选框参数一起带进接口
     fetchAddressList()
   }
 
-  // 表格分页切换
   const handleTableChange = (pagination: any) => {
     setPage(pagination.current)
     setPageSize(pagination.pageSize)
   }
 
-  // 复制地址
   const handleCopy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
@@ -223,26 +282,7 @@ const AddressManagement: React.FC = () => {
     }
   }
 
-  // 查看详情
-  const handleViewDetail = (record: BindAddressItem) => {
-    setDetailInfo(record)
-    setDetailVisible(true)
-  }
-
-  // 分配地址
-  const handleAssign = (record: BindAddressItem) => {
-    handleOpenAssignModal(record)
-  }
-
-  // 解绑地址
-  const handleUnBind = (record: BindAddressItem) => {
-    console.log('解绑操作：', record)
-    message.info('解绑操作中')
-  }
-
-  // 动态列 - 已绑定多3列，未绑定自动隐藏
   const columns = useMemo<TableColumnsType<BindAddressItem>>(() => {
-    // 基础列 始终显示
     const baseCols: TableColumnsType<BindAddressItem> = [
       {
         title: '序号',
@@ -275,15 +315,30 @@ const AddressManagement: React.FC = () => {
         ),
       },
     ]
-
-    // 仅已绑定才显示的3个额外列
     const extraCols: TableColumnsType<BindAddressItem> = [
       { title: '绑定用户', dataIndex: 'userName', width: 120 },
-      { title: '用户状态', dataIndex: 'userStatus', width: 100 },
-      { title: '地址余额', dataIndex: 'balance', width: 120 },
+      {
+        title: '用户状态',
+        dataIndex: 'userStatus',
+        width: 100,
+        render: (val) => getUserStatusTag(val),
+      },
+      {
+        title: '地址余额',
+        dataIndex: 'balance',
+        width: 180,
+        render: (val, record) => (
+          <Space size="small">
+            <Button
+              size="small"
+              type="link"
+              onClick={() => handleViewRealBalance(record)}>
+              查看链上余额
+            </Button>
+          </Space>
+        ),
+      },
     ]
-
-    // 时间列 + 操作列
     const restCols: TableColumnsType<BindAddressItem> = [
       {
         title: '创建时间',
@@ -293,21 +348,19 @@ const AddressManagement: React.FC = () => {
       },
       {
         title: '操作',
-        width: 150,
+        width: 100,
         fixed: 'right',
         render: (_, record) => (
           <Space size="small">
             {record.status === 1 ? (
-              <div>
-                <Button type="link" onClick={() => handleViewDetail(record)}>
-                  查看详情
-                </Button>
-                <Button type="link" danger onClick={() => handleUnBind(record)}>
-                  解绑
-                </Button>
-              </div>
+              <Button
+                type="link"
+                danger
+                onClick={() => handleOpenUnBindModal(record)}>
+                解绑
+              </Button>
             ) : (
-              <Button type="link" onClick={() => handleAssign(record)}>
+              <Button type="link" onClick={() => handleOpenAssignModal(record)}>
                 分配
               </Button>
             )}
@@ -315,8 +368,6 @@ const AddressManagement: React.FC = () => {
         ),
       },
     ]
-
-    // 已绑定拼接全部，未绑定只拼基础+时间+操作
     return activeTab === 'bound'
       ? [...baseCols, ...extraCols, ...restCols]
       : [...baseCols, ...restCols]
@@ -385,7 +436,6 @@ const AddressManagement: React.FC = () => {
           onChange={setActiveTab}
           style={{ marginBottom: 16 }}
         />
-
         <Table
           rowKey="_id"
           dataSource={tableData}
@@ -402,7 +452,6 @@ const AddressManagement: React.FC = () => {
         />
       </Card>
 
-      {/* 原有详情弹窗保留不动 */}
       <Modal
         title="地址详细信息"
         open={detailVisible}
@@ -426,7 +475,7 @@ const AddressManagement: React.FC = () => {
             {detailInfo.balance || '-'}
           </Descriptions.Item>
           <Descriptions.Item label="用户状态">
-            {detailInfo.userStatus || '-'}
+            {getUserStatusTag(detailInfo.userStatus)}
           </Descriptions.Item>
           <Descriptions.Item label="绑定状态">
             {detailInfo.status === 1 ? '已绑定' : '未绑定'}
@@ -440,7 +489,6 @@ const AddressManagement: React.FC = () => {
         </Descriptions>
       </Modal>
 
-      {/* 新增：分配弹窗 */}
       <Modal
         title="地址分配绑定"
         open={assignVisible}
@@ -462,6 +510,91 @@ const AddressManagement: React.FC = () => {
             <Input placeholder="请输入要绑定的用户钱包地址" />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="确认解绑地址"
+        open={unBindModalVisible}
+        onCancel={() => setUnBindModalVisible(false)}
+        footer={
+          Number(realChainBalance) <= 0
+            ? [
+                <Button
+                  key="cancel"
+                  onClick={() => setUnBindModalVisible(false)}>
+                  取消
+                </Button>,
+                <Button
+                  key="ok"
+                  type="primary"
+                  danger
+                  loading={unBindLoading}
+                  onClick={handleUnBindOk}>
+                  确认解绑
+                </Button>,
+              ]
+            : [
+                <Button onClick={() => setUnBindModalVisible(false)}>
+                  关闭
+                </Button>,
+              ]
+        }>
+        {checkBalanceLoading ? (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>
+            正在校验链上真实余额，请稍候...
+          </div>
+        ) : (
+          <>
+            <p>钱包地址：{unBindRow?.address}</p>
+            <p>
+              链上真实余额：<strong>{realChainBalance}</strong>
+            </p>
+            {Number(realChainBalance) > 0 ? (
+              <p style={{ color: '#ff4d4f', fontWeight: 500, marginTop: 10 }}>
+                ❌ 检测到地址仍有链上资产，暂无法解绑，请先归集！
+              </p>
+            ) : (
+              <p style={{ color: '#52c41a', fontWeight: 500, marginTop: 10 }}>
+                ✅ 当前余额为0，可正常解绑，解绑后地址将回收至地址池
+              </p>
+            )}
+          </>
+        )}
+      </Modal>
+
+      <Modal
+        title="链上余额详情"
+        open={balanceModalVisible}
+        onCancel={() => setBalanceModalVisible(false)}
+        footer={null}
+        width={520}
+        destroyOnClose>
+        {balanceModalLoading ? (
+          <div style={{ textAlign: 'center', padding: '30px 0' }}>
+            正在查询链上余额...
+          </div>
+        ) : balanceInfo ? (
+          <div style={{ lineHeight: '2.5', fontSize: 15 }}>
+            <div>
+              <strong>所在网络：</strong>
+              {balanceInfo.chainName}
+            </div>
+            <div>
+              <strong>币种类型：</strong>
+              {balanceInfo.coin}
+            </div>
+            <div>
+              <strong>钱包地址：</strong>
+              {balanceInfo.address}
+            </div>
+            <div>
+              <strong>链上余额：</strong>
+              {balanceInfo.balance}
+            </div>
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '20px 0' }}>暂无数据</div>
+        )}
       </Modal>
     </div>
   )
