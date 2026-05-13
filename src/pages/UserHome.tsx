@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Button, Typography, Row, Col, Checkbox, Space, Select } from 'antd'
 import {
   MoneyCollectOutlined,
@@ -9,7 +9,6 @@ import {
   AccountBookOutlined,
 } from '@ant-design/icons'
 import { Line, Pie } from '@ant-design/plots'
-
 import RechargeModal from './components/RechargeModal'
 import WithdrawModal from './components/WithdrawModel'
 import { insertCoin } from '../api/inserCoin'
@@ -24,11 +23,9 @@ interface CoinAsset {
   frozen: number
   usdValue: number
 }
-
 interface ChainAssets {
   coins: Record<string, CoinAsset>
 }
-
 interface AssetResponse {
   code: number
   msg: string
@@ -37,10 +34,21 @@ interface AssetResponse {
   }
 }
 
+interface RechargeMsg {
+  type: string
+  userAddr: string
+  rechargeAddr: string
+  txHash: string
+  // 后面要用到的都写上
+  address?: string
+  chain?: string
+  coin?: string
+  amount?: string
+}
+
 const calcCoinAllBalance = (assets: Record<string, ChainAssets>) => {
   const coinBalanceMap: Record<string, number> = {}
   const coinValueMap: Record<string, number> = {}
-
   Object.values(assets).forEach((chainAsset) => {
     Object.entries(chainAsset.coins).forEach(([coin, asset]) => {
       const totalBalance = asset.balance + asset.frozen
@@ -48,7 +56,6 @@ const calcCoinAllBalance = (assets: Record<string, ChainAssets>) => {
       coinValueMap[coin] = (coinValueMap[coin] || 0) + asset.usdValue
     })
   })
-
   return { coinBalanceMap, coinValueMap }
 }
 
@@ -70,7 +77,6 @@ const walletList = [
   { name: 'Polygon 钱包', balance: '120.50' },
 ]
 
-// ========== 假数据：多币种+多时间区间 ==========
 const generate7DayData = () => {
   const days = ['05-01', '05-02', '05-03', '05-04', '05-05', '05-06', '05-07']
   const base = {
@@ -105,7 +111,6 @@ const allData = {
   '7d': generate7DayData(),
   '30d': generate30DayData(),
 }
-// =================================================
 
 const coinColors = {
   BTC: '#F7931A',
@@ -124,11 +129,8 @@ const UserHome = () => {
       USDT: { balance: 0.0, change24h: 0, usdValue: 0.0 },
     },
   })
-
   const [rechargeVisible, setRechargeVisible] = useState(false)
   const [withdrawVisible, setWithdrawVisible] = useState(false)
-
-  // 图表控制状态
   const [timeRange, setTimeRange] = useState<'7d' | '30d'>('7d')
   const [selectedCoins, setSelectedCoins] = useState<string[]>([
     'BTC',
@@ -136,18 +138,8 @@ const UserHome = () => {
     'USDT',
   ])
 
-  // 根据时间和选中币种过滤数据
-  const chartData = useMemo(() => {
-    return allData[timeRange].filter((d) => selectedCoins.includes(d.coin))
-  }, [timeRange, selectedCoins])
-
-  // 饼图假数据
-  const pieData = [
-    { type: 'BTC', value: 4800 },
-    { type: 'ETH', value: 3600 },
-    { type: 'USDT', value: 6500 },
-    { type: '其他', value: 1200 },
-  ]
+  // ========== 新增：WebSocket 连接 ==========
+  const socketRef = useRef<WebSocket | null>(null)
 
   const toGetUserAssets = async () => {
     try {
@@ -155,7 +147,6 @@ const UserHome = () => {
       const newData = result.data.data.assets
       const totalUsd = calcTotalUSD(newData)
       const allBalance = calcCoinAllBalance(newData)
-
       setAssetData({
         ...assetData,
         totalUsd,
@@ -182,29 +173,75 @@ const UserHome = () => {
     }
   }
 
-  const toInsetCoin = async () => {
+  // ========== 新增：后端抓到充值后，自动刷新资产 ==========
+  const handleRechargeMessage = async (data: RechargeMsg) => {
+    console.log(data, '-------------')
+
+    await insertCoin({
+      txHash: data.txHash,
+      amount: data.amount || '',
+      chain: data.chain || '',
+      coin: data.coin || '',
+    })
+
     try {
-      await insertCoin()
-    } catch (e) {
-      console.error(e)
+      await toGetUserAssets()
+      alert('充值已到账，资产已更新')
+    } catch (err) {
+      console.error('刷新资产失败', err)
     }
   }
 
-  const getCoinLst = async () => {
-    try {
-      await getRecordLists()
-    } catch (e) {
-      console.error(e)
+  // ========== 新增：WebSocket 监听后端消息 ==========
+  useEffect(() => {
+    const socket = new WebSocket('ws://localhost:3000')
+    socketRef.current = socket
+
+    socket.onopen = () => {
+      console.log('✅ WebSocket 已连接，等待充值通知...')
     }
-  }
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data) as RechargeMsg
+        if (data.type === 'user_recharge') {
+          console.log('💸 收到充值：', data)
+          handleRechargeMessage(data)
+        }
+      } catch (e) {
+        console.error('消息解析失败', e)
+      }
+    }
+
+    socket.onclose = () => {
+      console.log('🔌 WebSocket 断开')
+    }
+
+    socket.onerror = (err) => {
+      console.error('WebSocket 错误', err)
+    }
+
+    return () => {
+      socket.close()
+    }
+  }, [])
 
   useEffect(() => {
     toGetUserAssets()
   }, [])
 
-  const cardHeight = 260
+  const chartData = useMemo(() => {
+    return allData[timeRange].filter((d) => selectedCoins.includes(d.coin))
+  }, [timeRange, selectedCoins])
 
-  // 暗黑统一样式
+  const pieData = [
+    { type: 'BTC', value: 4800 },
+    { type: 'ETH', value: 3600 },
+    { type: 'USDT', value: 6500 },
+    { type: '其他', value: 1200 },
+  ]
+
+  const cardHeight = 260
   const pageWrap = {
     width: '100%',
     minHeight: '100vh',
@@ -212,7 +249,6 @@ const UserHome = () => {
     margin: 0,
     padding: '0 0 30px 0',
   }
-
   const cardStyle = {
     background: 'rgba(255,255,255,0.06)',
     border: '1px solid rgba(0, 210, 255, 0.15)',
@@ -221,21 +257,18 @@ const UserHome = () => {
     boxShadow: '0 0 18px rgba(0,180,255,0.08)',
     backdropFilter: 'blur(6px)',
   }
-
   const textPrimary = { color: '#ffffff' }
   const textSecondary = { color: '#a0b4d8' }
   const colorUp = { color: '#00c853' }
   const colorDown = { color: '#f44336' }
 
-  // 多币种折线图配置（专业版）
   const lineConfig = {
     data: chartData,
     xField: 'date',
     yField: 'price',
-    seriesField: 'coin', // 多币种区分
+    seriesField: 'coin',
     smooth: true,
     color: (d) => coinColors[d.coin],
-    // 坐标轴（左右都有刻度）
     xAxis: {
       label: { style: { fill: '#a0b4d8' }, autoRotate: true },
       line: { style: { stroke: 'rgba(0,210,255,0.15)' } },
@@ -246,7 +279,6 @@ const UserHome = () => {
       line: { style: { stroke: 'rgba(0,210,255,0.15)' } },
       grid: { line: { style: { stroke: 'rgba(255,255,255,0.08)' } } },
     },
-    // 数据点+价格标注
     point: {
       size: 4,
       shape: 'circle',
@@ -257,7 +289,6 @@ const UserHome = () => {
       formatter: (datum) => `${datum.price}`,
       position: 'top',
     },
-    // 提示框（hover显示详情）
     tooltip: {
       shared: true,
       showCrosshairs: true,
@@ -267,14 +298,12 @@ const UserHome = () => {
         value: `$${datum.price}`,
       }),
     },
-    // 图例（对应币种颜色）
     legend: {
       position: 'top',
       label: { style: { fill: '#a0b4d8' } },
     },
   }
 
-  // 环形饼图配置
   const pieConfig = {
     data: pieData,
     angleField: 'value',
@@ -454,6 +483,7 @@ const UserHome = () => {
             ))}
           </div>
         </Col>
+
         <Col span={8}>
           <div style={{ ...cardStyle, height: cardHeight }}>
             <div
@@ -501,6 +531,7 @@ const UserHome = () => {
             </div>
           </div>
         </Col>
+
         <Col span={8}>
           <div style={{ ...cardStyle, height: cardHeight }}>
             <div
@@ -531,11 +562,9 @@ const UserHome = () => {
         </Col>
       </Row>
 
-      {/* 专业多币种折线图（带筛选+标注） */}
       <Row gutter={24} style={{ padding: '0 16px' }}>
         <Col span={12}>
           <div style={cardStyle}>
-            {/* 筛选栏：时间+币种选择 */}
             <div
               style={{
                 display: 'flex',
@@ -547,7 +576,6 @@ const UserHome = () => {
                 多币种价格走势
               </div>
               <Space size="middle">
-                {/* 时间切换 */}
                 <Select
                   value={timeRange}
                   onChange={(v) => setTimeRange(v)}
@@ -559,7 +587,6 @@ const UserHome = () => {
                   <Option value="7d">近7天</Option>
                   <Option value="30d">近30天</Option>
                 </Select>
-                {/* 币种勾选 */}
                 <Checkbox.Group
                   value={selectedCoins}
                   onChange={(v) => setSelectedCoins(v as string[])}
@@ -579,10 +606,10 @@ const UserHome = () => {
                 </Checkbox.Group>
               </Space>
             </div>
-            {/* 折线图 */}
             <Line {...lineConfig} height={280} />
           </div>
         </Col>
+
         <Col span={12}>
           <div style={cardStyle}>
             <div
