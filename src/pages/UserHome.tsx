@@ -120,6 +120,7 @@ const coinColors = {
 }
 
 const UserHome = () => {
+  const [historytxHash, setHistorytxHash] = useState('')
   const [assetData, setAssetData] = useState({
     totalUsd: 0.0,
     change24h: 0,
@@ -175,7 +176,13 @@ const UserHome = () => {
 
   // ========== 新增：后端抓到充值后，自动刷新资产 ==========
   const handleRechargeMessage = async (data: RechargeMsg) => {
-    console.log(data, '-------------')
+    const currentTxHash = localStorage.getItem('txHash') || ''
+
+    if (currentTxHash === data.txHash) {
+      return
+    } else {
+      localStorage.setItem('txHash', JSON.stringify(currentTxHash))
+    }
 
     await insertCoin({
       txHash: data.txHash,
@@ -186,7 +193,7 @@ const UserHome = () => {
 
     try {
       await toGetUserAssets()
-      alert('充值已到账，资产已更新')
+      console.log('充值已到账，资产已更新')
     } catch (err) {
       console.error('刷新资产失败', err)
     }
@@ -194,7 +201,7 @@ const UserHome = () => {
 
   // ========== 新增：WebSocket 监听后端消息 ==========
   useEffect(() => {
-    const socket = new WebSocket('ws://localhost:3000')
+    const socket = new WebSocket('ws://127.0.0.1:3000')
     socketRef.current = socket
 
     socket.onopen = () => {

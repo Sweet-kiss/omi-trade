@@ -82,16 +82,7 @@ export default function WithdrawModal({
       console.log(values, 'values--------')
 
       const data = res as any
-
       console.log(data, 'data--------')
-
-      // 按你后端正常返回判断
-      // if (res.code === 200) {
-      //   message.success('提现申请已提交')
-      //   form.resetFields()
-      // } else {
-      //   message.error(res.msg || '提现失败')
-      // }
     } catch (error) {
       message.error('提现请求失败，请检查')
     } finally {

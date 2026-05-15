@@ -14,10 +14,20 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { getRecordLists } from '../api/allRecordListApi'
+import { getDrawAduit } from '../api/withDrawAduitApi.ts'
 import dayjs from 'dayjs'
+// 引入你的用户全局pin，按你真实路径调整
+import { useUserStore } from '../store/useUserStore.ts'
+
+type FlowStatus =
+  | 'success'
+  | 'confirming'
+  | 'reject'
+  | 'pending_audit'
+  | 'pending'
 
 interface FundFlowItem {
-  id: string
+  _id: string
   txHash: string
   coin: string
   chain: string
@@ -25,15 +35,21 @@ interface FundFlowItem {
   amount: string
   fromAddress?: string
   toAddress?: string
-  status: 'success' | 'confirming' | 'reject'
-  createTime: string
+  status: FlowStatus
+  createdAt: string
 }
 
 export default function FundFlow() {
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
+  const [auditLoading, setAuditLoading] = useState(false)
   const [data, setData] = useState<FundFlowItem[]>([])
   const [total, setTotal] = useState(0)
+
+  // ========== 关键修改：从pin取权限，不再写死 ==========
+  const userPin = useUserStore()
+  // 这里字段名和你pin里保持一致，比如role / isAudit
+  const isAuditor = userPin.user?.role === 'auditor'
 
   const [params, setParams] = useState({
     txHash: '',
@@ -44,12 +60,10 @@ export default function FundFlow() {
     pageSize: 7,
   })
 
-  // 加载列表
   const loadList = async () => {
     setLoading(true)
     try {
       const res = await getRecordLists(params as any)
-      console.log(res, 'res======')
       setData(res.data.data.list || [])
       setTotal(res.data.data.total || 0)
     } catch (err) {
@@ -59,24 +73,19 @@ export default function FundFlow() {
     }
   }
 
-  // 分页变化请求
   useEffect(() => {
     loadList()
   }, [params.pageNum])
 
-  // Form 搜索提交
   const handleSearch = (values: any) => {
-    // 把表单所有值合并进params，跳第一页刷新
     setParams((prev) => ({
       ...prev,
       ...values,
       pageNum: 1,
     }))
-    // 等state更新后再请求
     setTimeout(loadList, 0)
   }
 
-  // 重置
   const handleReset = () => {
     form.resetFields()
     setParams({
@@ -97,16 +106,48 @@ export default function FundFlow() {
     })
   }
 
-  const columns: ColumnsType<FundFlowItem> = [
+  const handleApprove = async (recordId: string) => {
+    setAuditLoading(true)
+    try {
+      await getDrawAduit({
+        recordId,
+        action: 'approve',
+      })
+      message.success('审核通过成功')
+      loadList()
+    } catch (err) {
+      message.error('审核通过失败，请重试')
+    } finally {
+      setAuditLoading(false)
+    }
+  }
+
+  const handleReject = async (recordId: string) => {
+    setAuditLoading(true)
+    try {
+      // 统一用已引入的 getDrawAduit，修复找不到auditWithdraw的报错
+      await getDrawAduit({
+        recordId,
+        action: 'reject',
+      })
+      message.success('已驳回')
+      loadList()
+    } catch (err) {
+      message.error('驳回失败，请重试')
+    } finally {
+      setAuditLoading(false)
+    }
+  }
+
+  const baseColumns: ColumnsType<FundFlowItem> = [
     {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
       width: 90,
       fixed: 'left',
-      render: (_val, col) => {
-        const row = col as any
-        return row.type === 'deposit' ? (
+      render: (val) => {
+        return val === 'recharge' ? (
           <Tag color="green">充值</Tag>
         ) : (
           <Tag color="orange">提现</Tag>
@@ -130,39 +171,10 @@ export default function FundFlow() {
     { title: '币种', dataIndex: 'coin', key: 'coin', width: 100 },
     { title: '链', dataIndex: 'chain', key: 'chain', width: 120 },
     {
-      title: '来自地址',
-      dataIndex: 'fromAddress',
-      key: 'fromAddress',
-      width: 180,
-      render: (addr) =>
-        addr ? (
-          <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
-            {addr.slice(0, 6)}...{addr.slice(-4)}
-          </span>
-        ) : (
-          '-'
-        ),
-    },
-    {
-      title: '目标地址',
-      dataIndex: 'toAddress',
-      key: 'toAddress',
-      width: 180,
-      render: (addr) =>
-        addr ? (
-          <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
-            {addr.slice(0, 6)}...{addr.slice(-4)}
-          </span>
-        ) : (
-          '-'
-        ),
-    },
-    {
       title: '时间',
       dataIndex: 'createdAt',
       key: 'createdAt',
       width: 170,
-      // 只展示 年月日 去掉后面长串
       render: (time) => (time ? dayjs(time).format('YYYY-MM-DD') : '-'),
     },
     {
@@ -171,10 +183,9 @@ export default function FundFlow() {
       key: 'amount',
       width: 110,
       fixed: 'right',
-      render: (amt: number, col) => {
-        const row = col as any
-        const num = amt ?? 0
-        if (row.type === 'deposit') {
+      render: (amt: string, row) => {
+        const num = Number(amt) || 0
+        if (row.type === 'recharge') {
           return <span style={{ color: 'green', fontWeight: 500 }}>+{num}</span>
         }
         if (row.type === 'withdraw') {
@@ -189,19 +200,58 @@ export default function FundFlow() {
       key: 'status',
       width: 100,
       fixed: 'right',
-      render: (s, col) => {
-        const row = col as any
-        if (row.status === 'confirmed') return <Tag color="success">已到账</Tag>
-        if (row.status === 'pending')
-          return <Tag color="processing">确认中</Tag>
+      render: (status) => {
+        if (status === 'pending') return <Tag color="processing">待处理</Tag>
+        if (status === 'pending_audit')
+          return <Tag color="processing">待审核</Tag>
+        if (status === 'audited_pass') return <Tag color="error">已审核</Tag>
+        if (status === 'reject') return <Tag color="error">已驳回、已退钱</Tag>
+        if (status === 'success' || status === 'confirming')
+          return <Tag color="success">已到账</Tag>
         return <Tag>未知</Tag>
       },
     },
   ]
 
+  const actionColumn: ColumnsType<FundFlowItem> = isAuditor
+    ? [
+        {
+          title: '操作',
+          key: 'action',
+          width: 180,
+          fixed: 'right',
+          render: (_: any, record: FundFlowItem) => {
+            if (record.status === 'pending_audit') {
+              return (
+                <>
+                  <Button
+                    type="primary"
+                    size="small"
+                    onClick={() => handleApprove(record._id)}
+                    loading={auditLoading}
+                    style={{ marginRight: 8 }}>
+                    通过
+                  </Button>
+                  <Button
+                    danger
+                    size="small"
+                    onClick={() => handleReject(record._id)}
+                    loading={auditLoading}>
+                    驳回
+                  </Button>
+                </>
+              )
+            }
+            return null
+          },
+        },
+      ]
+    : []
+
+  const columns: ColumnsType<FundFlowItem> = [...baseColumns, ...actionColumn]
+
   return (
     <div style={{ padding: '16px' }}>
-      {/* 全部改成一个Form表单 */}
       <Form
         form={form}
         layout="inline"
